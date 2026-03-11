@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import json
 import os
-import sys
 import traceback
 from datetime import datetime
 
@@ -18,7 +17,6 @@ from utils.worker_state import (
     save_worker_status,
 )
 
-
 dotenv.load_dotenv()
 
 
@@ -30,17 +28,21 @@ async def run_forecast(url: str, config: BotConfig):
     return reports[0]
 
 
+def _load_config(config_path: str) -> dict:
+    with open(config_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", required=True)
-    parser.add_argument("--config-json", required=True)
+    parser.add_argument("--config-path", required=True)
     args = parser.parse_args()
 
-    config_dict = json.loads(args.config_json)
+    config_dict = _load_config(args.config_path)
     config = BotConfig(**config_dict)
 
     clear_worker_result()
-
     save_worker_status(
         {
             "state": "running",
@@ -66,7 +68,6 @@ def main() -> None:
             "explanation": report.explanation,
             "config": config_dict,
         }
-
         save_worker_result(result)
 
         entry = make_run_entry(
@@ -116,6 +117,13 @@ def main() -> None:
             }
         )
         raise
+
+    finally:
+        try:
+            if os.path.exists(args.config_path):
+                os.remove(args.config_path)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

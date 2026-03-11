@@ -4,6 +4,7 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 from collections import defaultdict
 
 import dotenv
@@ -21,7 +22,6 @@ from utils.worker_state import (
     load_worker_status,
     save_worker_status,
 )
-
 
 dotenv.load_dotenv()
 
@@ -69,15 +69,26 @@ def worker_is_running() -> bool:
     return status.get("state") == "running"
 
 
+def _write_temp_config(config: BotConfig) -> str:
+    fd, path = tempfile.mkstemp(prefix="metac_bot_config_", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(config.__dict__, f)
+    except Exception:
+        try:
+            os.close(fd)
+        except Exception:
+            pass
+        raise
+    return path
+
+
 def start_worker(question_url: str, config: BotConfig) -> None:
     clear_worker_result()
 
-    worker_script = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "run_forecast_worker.py",
-    )
-
-    config_json = json.dumps(config.__dict__)
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    worker_script = os.path.join(project_root, "run_forecast_worker.py")
+    config_path = _write_temp_config(config)
 
     process = subprocess.Popen(
         [
@@ -85,10 +96,10 @@ def start_worker(question_url: str, config: BotConfig) -> None:
             worker_script,
             "--url",
             question_url,
-            "--config-json",
-            config_json,
+            "--config-path",
+            config_path,
         ],
-        cwd=os.path.dirname(os.path.dirname(__file__)),
+        cwd=project_root,
     )
 
     save_worker_status(
@@ -97,6 +108,7 @@ def start_worker(question_url: str, config: BotConfig) -> None:
             "pid": process.pid,
             "question_url": question_url,
             "config": config.__dict__,
+            "config_path": config_path,
         }
     )
 
@@ -141,7 +153,6 @@ with st.sidebar:
             "Human extinction": "https://www.metaculus.com/questions/578/human-extinction-by-2100/",
             "AI labor strikes": "https://www.metaculus.com/questions/38880/",
         }
-
         question_choice = st.selectbox(
             "Select a test question",
             list(question_options.keys()),
@@ -151,7 +162,6 @@ with st.sidebar:
     elif question_source == "Live questions":
         try:
             live_questions = get_live_questions(limit=20)
-
             question_map = {
                 q.question_text: q.page_url
                 for q in live_questions
@@ -197,6 +207,7 @@ with st.sidebar:
     )
 
     use_asknews = st.checkbox("Use AskNews", value=True)
+    use_sequential_research = st.checkbox("Use sequential research", value=True)
 
     default_model = st.selectbox(
         "Default model",
@@ -216,22 +227,29 @@ with st.sidebar:
         index=0,
     )
 
+    research_model = st.selectbox(
+        "Research model",
+        options=["gpt-4o-mini", "gpt-4o"],
+        index=0,
+    )
 
-config = BotConfig(
-    bot_name="RobBot",
-    research_reports_per_question=research_reports,
-    predictions_per_research_report=predictions_per_report,
-    max_concurrent_questions=max_concurrent,
-    default_model=default_model,
-    summarizer_model=summarizer_model,
-    parser_model=parser_model,
-    use_asknews=use_asknews,
-)
+    config = BotConfig(
+        bot_name="RobBot",
+        research_reports_per_question=research_reports,
+        predictions_per_research_report=predictions_per_report,
+        max_concurrent_questions=max_concurrent,
+        default_model=default_model,
+        summarizer_model=summarizer_model,
+        parser_model=parser_model,
+        use_asknews=use_asknews,
+        use_sequential_research=use_sequential_research,
+        research_model=research_model,
+    )
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    if st.button("Run Forecast", use_container_width=True):
+    if st.button("Run Forecast", width="stretch"):
         if worker_is_running():
             st.warning("A forecast is already running.")
         else:
@@ -239,17 +257,16 @@ with col1:
             st.rerun()
 
 with col2:
-    if st.button("Refresh Status", use_container_width=True):
+    if st.button("Refresh Status", width="stretch"):
         st.rerun()
 
 with col3:
-    if st.button("Stop Forecast", use_container_width=True):
+    if st.button("Stop Forecast", width="stretch"):
         if worker_is_running():
             stop_worker()
             st.rerun()
         else:
             st.info("No running forecast to stop.")
-
 
 st.divider()
 st.subheader("Worker Status")
@@ -264,13 +281,14 @@ else:
     st.write(f"**PID:** {status.get('pid', 'n/a')}")
     st.write(f"**Question URL:** {status.get('question_url', 'n/a')}")
 
-if status.get("state") == "running":
-    st.info("A forecast is currently running. Use Refresh Status to check progress or Stop Forecast to cancel.")
+    if status.get("state") == "running":
+        st.info("A forecast is currently running. Use Refresh Status to check progress or Stop Forecast to cancel.")
+    elif status.get("state") == "stopped":
+        st.warning("The forecast was stopped.")
+    elif status.get("state") == "error":
+        st.error(f"Worker error: {status.get('error', 'Unknown error')}")
 
-elif status.get("state") == "stopped":
-    st.warning("The forecast was stopped.")
-
-elif result.get("state") == "completed":
+if result.get("state") == "completed":
     st.divider()
     st.subheader("Forecast Summary")
     st.write(f"**Question:** {result['question_text']}")
@@ -288,19 +306,16 @@ elif result.get("state") == "error":
     with st.expander("Traceback", expanded=False):
         st.code(result.get("traceback", ""), language="text")
 
-
 st.divider()
 st.subheader("Run History")
 
 history = load_run_history()
-
 if not history:
     st.write("No saved runs yet.")
 else:
     for item in reversed(history[-20:]):
         qid = extract_question_id(item["question_url"])
         subject = shorten(item.get("question_text", ""))
-
         title = (
             f"{qid} | {subject} | "
             f"P={item['prediction'] * 100:.2f}% | "
@@ -316,7 +331,6 @@ else:
             st.write(f"**Errors:** {item['errors']}")
             st.write("**Config:**")
             st.json(item["config"])
-
 
 st.divider()
 st.subheader("Run Comparison")
@@ -343,7 +357,6 @@ else:
         "Choose a question to compare runs",
         comparison_options,
     )
-
     selected_url = label_to_url[selected_label]
     selected_runs = grouped[selected_url]
 
@@ -352,17 +365,19 @@ else:
         cfg = item.get("config", {})
         comparison_rows.append(
             {
-                "Timestamp": item.get("timestamp", ""),
-                "Prediction %": round(item.get("prediction", 0) * 100, 2),
-                "Cost $": round(item.get("price_estimate", 0), 2),
-                "Minutes": round(item.get("minutes_taken", 0), 2),
-                "Default model": cfg.get("default_model", ""),
-                "Summarizer": cfg.get("summarizer_model", ""),
-                "Parser": cfg.get("parser_model", ""),
-                "AskNews": cfg.get("use_asknews", ""),
-                "Research reports": cfg.get("research_reports_per_question", ""),
-                "Predictions/report": cfg.get("predictions_per_research_report", ""),
+                "Timestamp": str(item.get("timestamp", "")),
+                "Prediction %": float(round(item.get("prediction", 0) * 100, 2)),
+                "Cost $": float(round(item.get("price_estimate", 0), 2)),
+                "Minutes": float(round(item.get("minutes_taken", 0), 2)),
+                "Default model": str(cfg.get("default_model", "")),
+                "Summarizer": str(cfg.get("summarizer_model", "")),
+                "Parser": str(cfg.get("parser_model", "")),
+                "Research model": str(cfg.get("research_model", "")),
+                "AskNews": str(cfg.get("use_asknews", "")),
+                "Sequential": str(cfg.get("use_sequential_research", "")),
+                "Research reports": int(cfg.get("research_reports_per_question", 0)),
+                "Predictions/report": int(cfg.get("predictions_per_research_report", 0)),
             }
         )
 
-    st.dataframe(comparison_rows, use_container_width=True)
+    st.dataframe(comparison_rows, width="stretch")

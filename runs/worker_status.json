@@ -1,0 +1,22 @@
+{
+  "state": "completed",
+  "pid": 4104,
+  "completed_at": "2026-03-11T10:49:11.891398",
+  "question_url": "https://www.metaculus.com/questions/578/human-extinction-by-2100/",
+  "config": {
+    "bot_name": "RobBot",
+    "research_reports_per_question": 1,
+    "predictions_per_research_report": 1,
+    "max_concurrent_questions": 1,
+    "default_model": "gpt-4o-mini",
+    "summarizer_model": "gpt-4o-mini",
+    "parser_model": "gpt-4o-mini",
+    "use_asknews": true,
+    "use_sequential_research": true,
+    "research_model": "gpt-4o-mini",
+    "research_temperature": 0.2,
+    "research_cache_dir": ".cache/research",
+    "max_search_queries": 4,
+    "max_results_per_query": 5
+  }
+}

@@ -28,15 +28,13 @@ class MyBot(TemplateBot):
         return self.config.max_concurrent_questions
 
     async def run_research(self, question) -> str:
-        prompt = f"""
-You are an assistant to a superforecaster.
-Provide a concise but detailed roundup of the most relevant recent information.
-
-Question:
-{question.question_text}
-"""
         return await get_research(
             question=question,
-            prompt=prompt,
             use_asknews=self.config.use_asknews,
+            use_sequential_research=self.config.use_sequential_research,
+            research_model=self.config.research_model,
+            research_temperature=self.config.research_temperature,
+            research_cache_dir=self.config.research_cache_dir,
+            max_search_queries=self.config.max_search_queries,
+            max_results_per_query=self.config.max_results_per_query,
         )
