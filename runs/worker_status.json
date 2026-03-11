@@ -1,7 +1,7 @@
 {
   "state": "completed",
-  "pid": 4104,
-  "completed_at": "2026-03-11T10:49:11.891398",
+  "pid": 22008,
+  "completed_at": "2026-03-11T15:08:17.279627",
   "question_url": "https://www.metaculus.com/questions/578/human-extinction-by-2100/",
   "config": {
     "bot_name": "RobBot",

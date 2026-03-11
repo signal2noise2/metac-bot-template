@@ -3,50 +3,52 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 from openai import AsyncOpenAI
+
+from utils.research_cache import ResearchCache
 
 logger = logging.getLogger(__name__)
 
 
 class BaseSearchProvider:
+    name = "base"
+
     async def search(self, query: str, max_results: int = 5) -> str:
         raise NotImplementedError
 
 
 class AskNewsProvider(BaseSearchProvider):
     """
-    AskNews partner / free-plan safe provider.
+    AskNews partner-safe provider.
 
-    AskNews docs say the Metaculus-partner/free plan is limited to:
-    - 1 request per 10 seconds
-    - concurrency limit 1
-
-    So we enforce:
-    - one request at a time with a lock
-    - minimum 10 seconds between requests
+    Metaculus AskNews plan limits:
+    - 1 request every 10 seconds
+    - concurrency limit = 1
     """
+
+    name = "asknews"
 
     _lock = asyncio.Lock()
     _last_request_time = 0.0
-    _min_interval_seconds = 10.5  # slight buffer above 10s
+    _min_interval_seconds = 10.5
 
     def __init__(self):
         self.client_id = os.getenv("ASKNEWS_CLIENT_ID")
         self.client_secret = os.getenv("ASKNEWS_SECRET")
 
         if not self.client_id or not self.client_secret:
-            raise RuntimeError("ASKNEWS_CLIENT_ID or ASKNEWS_SECRET is missing")
+            raise RuntimeError("ASKNEWS_CLIENT_ID or ASKNEWS_SECRET missing")
 
-    async def _wait_for_slot(self) -> None:
+    async def _wait_for_slot(self):
         async with self._lock:
             now = time.monotonic()
             elapsed = now - self.__class__._last_request_time
             wait_time = self.__class__._min_interval_seconds - elapsed
 
             if wait_time > 0:
-                logger.info("AskNews throttling: sleeping %.2f seconds", wait_time)
+                logger.info("AskNews throttling %.2fs", wait_time)
                 await asyncio.sleep(wait_time)
 
             self.__class__._last_request_time = time.monotonic()
@@ -76,11 +78,13 @@ class AskNewsProvider(BaseSearchProvider):
             return response.as_string
 
         except Exception as e:
-            logger.warning("AskNews search failed for query %r: %s", query, e)
+            logger.warning("AskNews failed: %s", e)
             return ""
 
 
 class NullSearchProvider(BaseSearchProvider):
+    name = "null"
+
     async def search(self, query: str, max_results: int = 5) -> str:
         return ""
 
@@ -98,10 +102,12 @@ class SequentialResearchPipeline:
         use_asknews: bool = True,
         max_search_queries: int = 4,
         max_results_per_query: int = 5,
+        research_cache_dir: str = ".cache/research",
     ):
         api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+
         if not api_key:
-            raise RuntimeError("OPENAI_API_KEY or OPENROUTER_API_KEY must be set")
+            raise RuntimeError("OPENAI_API_KEY or OPENROUTER_API_KEY required")
 
         base_url = os.getenv("OPENROUTER_BASE_URL")
 
@@ -109,37 +115,76 @@ class SequentialResearchPipeline:
             api_key=api_key,
             base_url=base_url,
         )
+
         self.model = model
         self.max_search_queries = max_search_queries
         self.max_results_per_query = max_results_per_query
+
+        self.cache = ResearchCache(research_cache_dir)
 
         if use_asknews:
             try:
                 self.search_provider = AskNewsProvider()
             except Exception as e:
-                logger.warning("Falling back to NullSearchProvider: %s", e)
+                logger.warning("AskNews unavailable: %s", e)
                 self.search_provider = NullSearchProvider()
         else:
             self.search_provider = NullSearchProvider()
 
     async def run(self, question: str) -> ResearchResult:
+        """
+        Research pipeline:
+
+        1. Generate search queries
+        2. Fuse them into one AskNews query
+        3. Cache lookup
+        4. Fetch evidence if needed
+        5. Summarise
+        """
+
         queries = await self._build_queries(question)
-        queries = queries[: self.max_search_queries]
+
+        # fuse queries into one AskNews-safe query
+        fused_query = " | ".join(queries[: self.max_search_queries])
 
         evidence = []
 
-        for q in queries:
+        cached = self.cache.get(
+            provider=self.search_provider.name,
+            query=fused_query,
+            max_results=self.max_results_per_query,
+            ttl_seconds=6 * 3600,
+        )
+
+        if cached:
+            logger.info("Research cache hit")
+            evidence.append(cached)
+
+        else:
+            logger.info("Research cache miss")
+
             search_results = await self.search_provider.search(
-                q,
+                fused_query,
                 max_results=self.max_results_per_query,
             )
-            combined = f"Query: {q}\n\n{search_results}"
+
+            combined = f"Query: {fused_query}\n\n{search_results}"
+
             evidence.append(combined)
 
+            self.cache.set(
+                provider=self.search_provider.name,
+                query=fused_query,
+                max_results=self.max_results_per_query,
+                result=combined,
+            )
+
         summary = await self._synthesise(question, evidence)
+
         return ResearchResult(summary=summary, raw_evidence=evidence)
 
     async def _build_queries(self, question: str) -> List[str]:
+
         prompt = f"""
 You are planning research for a forecasting question.
 
@@ -147,13 +192,14 @@ Question:
 {question}
 
 Generate up to {self.max_search_queries} useful search queries.
+
 Focus on:
 - base rates
 - recent developments
 - expert opinion
 - key drivers
 
-Return one query per line, with no numbering.
+Return one query per line.
 """
 
         response = await asyncio.wait_for(
@@ -166,10 +212,10 @@ Return one query per line, with no numbering.
         )
 
         text = response.choices[0].message.content or ""
+
         queries = [q.strip("-• \t") for q in text.split("\n") if q.strip()]
 
         if not queries:
-            logger.warning("Falling back to default search plan")
             queries = [
                 f"{question} latest developments",
                 f"{question} expert analysis",
@@ -180,6 +226,7 @@ Return one query per line, with no numbering.
         return queries[: self.max_search_queries]
 
     async def _synthesise(self, question: str, evidence: List[str]) -> str:
+
         joined = "\n\n".join(evidence)
 
         prompt = f"""
@@ -192,6 +239,7 @@ Evidence gathered:
 {joined}
 
 Write a structured research summary covering:
+
 - Base rates
 - Recent developments
 - Arguments for YES
