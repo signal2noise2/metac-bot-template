@@ -1,5 +1,4 @@
 import argparse
-import asyncio
 import json
 import os
 import traceback
@@ -8,24 +7,16 @@ from datetime import datetime
 import dotenv
 
 from bot.config import BotConfig
-from bot.my_bot import MyBot
-from forecasting_tools import MetaculusClient
+from bot.orchestrator import run_orchestrated_forecast
 from utils.run_history import make_run_entry, save_run_result
 from utils.worker_state import (
     clear_worker_result,
+    clear_worker_status,
     save_worker_result,
     save_worker_status,
 )
 
 dotenv.load_dotenv()
-
-
-async def run_forecast(url: str, config: BotConfig):
-    bot = MyBot(config=config)
-    client = MetaculusClient()
-    question = client.get_question_by_url(url)
-    reports = await bot.forecast_questions([question])
-    return reports[0]
 
 
 def _load_config(config_path: str) -> dict:
@@ -43,6 +34,8 @@ def main() -> None:
     config = BotConfig(**config_dict)
 
     clear_worker_result()
+    clear_worker_status()
+
     save_worker_status(
         {
             "state": "running",
@@ -54,32 +47,28 @@ def main() -> None:
     )
 
     try:
-        report = asyncio.run(run_forecast(args.url, config))
+        orchestrated = run_orchestrated_forecast(args.url, config)
 
         result = {
             "state": "completed",
             "completed_at": datetime.now().isoformat(),
-            "question_text": report.question.question_text,
-            "question_url": report.question.page_url,
-            "prediction": report.prediction,
-            "price_estimate": report.price_estimate,
-            "minutes_taken": report.minutes_taken,
-            "errors": report.errors,
-            "explanation": report.explanation,
+            **orchestrated,
             "config": config_dict,
         }
         save_worker_result(result)
 
         entry = make_run_entry(
-            question_text=report.question.question_text,
-            question_url=report.question.page_url,
-            prediction=report.prediction,
-            price_estimate=report.price_estimate,
-            minutes_taken=report.minutes_taken,
-            errors=report.errors,
-            explanation=report.explanation,
+            question_text=orchestrated["question_text"],
+            question_url=orchestrated["question_url"],
+            prediction=orchestrated["prediction"],
+            price_estimate=orchestrated["price_estimate"],
+            minutes_taken=orchestrated["minutes_taken"],
+            errors=orchestrated["errors"],
+            explanation=orchestrated["explanation"],
             config=config_dict,
         )
+        entry["question_state"] = orchestrated.get("question_state")
+        entry["aggregation_summary"] = orchestrated.get("aggregation_summary")
         save_run_result(entry)
 
         save_worker_status(
@@ -89,12 +78,13 @@ def main() -> None:
                 "completed_at": datetime.now().isoformat(),
                 "question_url": args.url,
                 "config": config_dict,
+                "question_state": orchestrated.get("question_state"),
+                "aggregation_summary": orchestrated.get("aggregation_summary"),
             }
         )
 
     except Exception as e:
         error_text = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-
         save_worker_result(
             {
                 "state": "error",
@@ -105,7 +95,6 @@ def main() -> None:
                 "config": config_dict,
             }
         )
-
         save_worker_status(
             {
                 "state": "error",
@@ -117,7 +106,6 @@ def main() -> None:
             }
         )
         raise
-
     finally:
         try:
             if os.path.exists(args.config_path):

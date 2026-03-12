@@ -1,22 +1,210 @@
 {
   "state": "completed",
-  "pid": 22008,
-  "completed_at": "2026-03-11T15:08:17.279627",
-  "question_url": "https://www.metaculus.com/questions/578/human-extinction-by-2100/",
+  "pid": 5268,
+  "completed_at": "2026-03-12T17:31:03.968736",
+  "question_url": "https://www.metaculus.com/questions/42548",
   "config": {
     "bot_name": "RobBot",
-    "research_reports_per_question": 1,
-    "predictions_per_research_report": 1,
+    "research_reports_per_question": 2,
+    "predictions_per_research_report": 3,
     "max_concurrent_questions": 1,
+    "required_successful_predictions": 0.5,
     "default_model": "gpt-4o-mini",
     "summarizer_model": "gpt-4o-mini",
     "parser_model": "gpt-4o-mini",
     "use_asknews": true,
     "use_sequential_research": true,
+    "use_question_routing": true,
+    "show_route_debug": true,
+    "enable_research_summary": true,
+    "use_research_summary_to_forecast": true,
     "research_model": "gpt-4o-mini",
     "research_temperature": 0.2,
     "research_cache_dir": ".cache/research",
     "max_search_queries": 4,
-    "max_results_per_query": 5
+    "max_results_per_query": 5,
+    "asknews_cache_ttl_hours": 6,
+    "binary_aggregation_method": "trimmed_mean_logit",
+    "binary_trim_fraction": 0.2,
+    "anti_rounding": true,
+    "forecast_diversity_enabled": true,
+    "community_anchor_weight": 0.15,
+    "ui_refresh_interval_seconds": 4
+  },
+  "question_state": {
+    "question_text": "Will gas prices in the US reach a new all-time high before April 1, 2026?",
+    "question_url": "https://www.metaculus.com/questions/42548",
+    "config_snapshot": {
+      "bot_name": "RobBot",
+      "research_reports_per_question": 2,
+      "predictions_per_research_report": 3,
+      "max_concurrent_questions": 1,
+      "required_successful_predictions": 0.5,
+      "default_model": "gpt-4o-mini",
+      "summarizer_model": "gpt-4o-mini",
+      "parser_model": "gpt-4o-mini",
+      "use_asknews": true,
+      "use_sequential_research": true,
+      "use_question_routing": true,
+      "show_route_debug": true,
+      "enable_research_summary": true,
+      "use_research_summary_to_forecast": true,
+      "research_model": "gpt-4o-mini",
+      "research_temperature": 0.2,
+      "research_cache_dir": ".cache/research",
+      "max_search_queries": 4,
+      "max_results_per_query": 5,
+      "asknews_cache_ttl_hours": 6,
+      "binary_aggregation_method": "trimmed_mean_logit",
+      "binary_trim_fraction": 0.2,
+      "anti_rounding": true,
+      "forecast_diversity_enabled": true,
+      "community_anchor_weight": 0.15,
+      "ui_refresh_interval_seconds": 4
+    },
+    "started_at": "2026-03-12T17:28:17.545495+00:00",
+    "completed_at": "2026-03-12T17:31:03.946204+00:00",
+    "route_decision": {
+      "question_type": "current_events",
+      "use_asknews": true,
+      "rationale": "Near-term event-driven question involving current developments and key actors.",
+      "forecast_lens": "base_rate"
+    },
+    "research_runs": [
+      {
+        "started_at": "2026-03-12T17:28:17.549002+00:00",
+        "completed_at": "2026-03-12T17:29:48.115496+00:00",
+        "route": {
+          "question_type": "current_events",
+          "use_asknews": true,
+          "rationale": "Near-term event-driven question involving current developments and key actors.",
+          "forecast_lens": "base_rate"
+        },
+        "provider_name": "asknews",
+        "provider_available": true,
+        "cache_used": false,
+        "queries": [
+          "\"recent developments in US gas prices 2023 2024\"",
+          "\"historical trends in US gas prices all-time highs\"",
+          "\"expert analysis on factors influencing US gas prices 2024\"",
+          "\"US gas price forecasts and structural constraints 2025\""
+        ],
+        "evidence_count": 3,
+        "warnings": [
+          "No results returned for query: \"recent developments in US gas prices 2023 2024\""
+        ],
+        "errors": [],
+        "elapsed_seconds": 90.23985159999575,
+        "research_preview": "Query: \"historical trends in US gas prices all-time highs\"\n\n------News Summaries Start------\n<doc>\nCitation key: [1]\nTitle: US Gas Prices Rising? Latest National Average and State Trends Explained\n\nSummary: \nAccording to AAA data updated March 11, 2026, the U.S. national average for regular unleaded gasoline has spiked to $3.58 per gallon, a 27-cent increase in early March. Patrick De Haan of GasBuddy warns that prices may continue to rise through the spring travel season, potentially reaching $4.00 if the U.S.-Iran conflict persists or refinery output drops. The primary drivers of this volatility include the Strait of Hormuz crisis, which keeps crude oil prices around $100 per barrel, and the transition to more expensive summer-blend fuel required by EPA standards. While the national aver",
+        "summary_preview": "### Research Brief: Will US Gas Prices Reach a New All-Time High Before April 1, 2026?\n\n#### Base Rates\nHistorically, the highest recorded average price for gasoline in the U.S. was $5.02 per gallon in June 2022. Since then, prices have fluctuated significantly due to various geopolitical and economic factors. As of March 2026, the national average is around $3.58 per gallon, indicating a recent increase but still below the all-time high. Historical trends suggest that prices tend to establish a \"higher floor\" after spikes, making it less likely for prices to revert to pre-crisis levels.\n\n#### Arguments for YES\n1. **Geopolitical Tensions**: The ongoing conflict involving Iran has led to significant volatility in crude oil prices, which are currently around $100 per barrel. If tensions esca",
+        "completed": true
+      },
+      {
+        "started_at": "2026-03-12T17:28:18.143362+00:00",
+        "completed_at": "2026-03-12T17:29:57.646994+00:00",
+        "route": {
+          "question_type": "current_events",
+          "use_asknews": true,
+          "rationale": "Near-term event-driven question involving current developments and key actors.",
+          "forecast_lens": "trend"
+        },
+        "provider_name": "asknews",
+        "provider_available": true,
+        "cache_used": false,
+        "queries": [
+          "\"recent developments in US gas prices 2023 news\"",
+          "\"historical trends in US gas prices all-time highs\"",
+          "\"expert analysis on factors driving US gas prices 2024\"",
+          "\"current operational bottlenecks affecting US gas supply\""
+        ],
+        "evidence_count": 4,
+        "warnings": [],
+        "errors": [],
+        "elapsed_seconds": 99.13064169999416,
+        "research_preview": "Query: \"recent developments in US gas prices 2023 news\"\n\n------News Summaries Start------\n<doc>\nCitation key: [1]\nTitle: 美股盘前：三大股指期货齐跌 美国初请失业金人数小幅下降\n\nSummary: \nUS pre-market trading saw declines in major stock index futures amid escalating Iran-US tensions and supply chain disruptions. The Strait of Hormuz has been effectively blocked by Iran, causing fertilizer shipments to halt and prices to surge; Nutrien and CF Industries rose over 3%, while Mosaic gained over 4%. Brent crude futures surged over 10% intraday, reaching $101/barrel, before settling near $98.37/barrel, while WTI crude rose over 6% to $93.17/barrel. The US Department of Labor reported that initial jobless claims fell to 213,000 for the week ended March 7, down from 214,000 the prior week and below the 215,000 market expect",
+        "summary_preview": "# Research Brief: Will US Gas Prices Reach a New All-Time High Before April 1, 2026?\n\n## Base Rates\nAs of March 11, 2026, the national average gas price in the US is $3.58 per gallon, having risen significantly due to geopolitical tensions, particularly the ongoing conflict in Iran. The previous all-time high was approximately $5.02 per gallon in June 2022.\n\n## Arguments for YES\n1. **Geopolitical Tensions**: The conflict in Iran has led to significant disruptions in oil supply, particularly through the Strait of Hormuz, which handles about 20% of global oil and LNG. This has caused Brent crude prices to surge from around $70 to over $110 per barrel, directly impacting gas prices.\n2. **Market Predictions**: Analysts suggest that if the conflict persists, gas prices could exceed $4.00 per ga",
+        "completed": true
+      }
+    ],
+    "warnings": [
+      "No results returned for query: \"recent developments in US gas prices 2023 2024\""
+    ],
+    "errors": [],
+    "final_prediction": 0.285796,
+    "final_price_estimate": 0.08644729999999998,
+    "final_minutes_taken": 2.7732165575027468,
+    "aggregation_summary": {
+      "prediction_type": "binary_probability",
+      "method": "trimmed_mean_logit",
+      "count": 6,
+      "probabilities": [
+        0.2,
+        0.25,
+        0.25,
+        0.3,
+        0.35,
+        0.4
+      ],
+      "aggregate_probability": 0.285796,
+      "median_probability": 0.275,
+      "mean_probability": 0.291667,
+      "min_probability": 0.2,
+      "max_probability": 0.4,
+      "spread": 0.2,
+      "stdev": 0.067185,
+      "trim_fraction": 0.2,
+      "raw_aggregate_probability": 0.285796
+    },
+    "research_cache_hits": 0,
+    "research_runs_completed": 2,
+    "total_prediction_samples": 6,
+    "predictions": [
+      {
+        "prediction_value": 0.25,
+        "reasoning_preview": "Parsed from explanation"
+      },
+      {
+        "prediction_value": 0.2,
+        "reasoning_preview": "Parsed from explanation"
+      },
+      {
+        "prediction_value": 0.25,
+        "reasoning_preview": "Parsed from explanation"
+      },
+      {
+        "prediction_value": 0.3,
+        "reasoning_preview": "Parsed from explanation"
+      },
+      {
+        "prediction_value": 0.35,
+        "reasoning_preview": "Parsed from explanation"
+      },
+      {
+        "prediction_value": 0.4,
+        "reasoning_preview": "Parsed from explanation"
+      }
+    ]
+  },
+  "aggregation_summary": {
+    "prediction_type": "binary_probability",
+    "method": "trimmed_mean_logit",
+    "count": 6,
+    "probabilities": [
+      0.2,
+      0.25,
+      0.25,
+      0.3,
+      0.35,
+      0.4
+    ],
+    "aggregate_probability": 0.285796,
+    "median_probability": 0.275,
+    "mean_probability": 0.291667,
+    "min_probability": 0.2,
+    "max_probability": 0.4,
+    "spread": 0.2,
+    "stdev": 0.067185,
+    "trim_fraction": 0.2,
+    "raw_aggregate_probability": 0.285796
   }
 }
